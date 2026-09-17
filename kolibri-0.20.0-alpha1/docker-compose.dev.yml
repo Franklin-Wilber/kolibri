@@ -1,0 +1,48 @@
+services:
+  kolibri-dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.local
+      args:
+        KOLIBRI_VERSION: 0.20.0a1
+        INSTALL_DEV_DEPS: "true"
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      KOLIBRI_HOME: /kolibri
+      KOLIBRI_RUN_MODE: dev
+      KOLIBRI_HTTP_PORT: 8000
+      KOLIBRI_ZIP_CONTENT_PORT: 8001
+      KOLIBRI_PLUGIN_ENABLE: kolibri_oidc_client_plugin
+      CLIENT_ID: ${OIDC_CLIENT_ID:-kolibri.app}
+      CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-kolibri.app}
+    volumes:
+      - ./kolibri-data-dev:/kolibri
+    command:
+      - kolibri
+      - start
+      - --debug
+      - --foreground
+      - --port=8000
+      - --zip-port=8001
+      - --settings=kolibri.deployment.default.settings.dev
+    restart: unless-stopped
+
+  postgres-dev:
+    profiles:
+      - postgres
+    image: postgres:16
+    ports:
+      - "15433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: default
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d default"]
+      interval: 1s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - ./kolibri-pg-dev:/var/lib/postgresql/data

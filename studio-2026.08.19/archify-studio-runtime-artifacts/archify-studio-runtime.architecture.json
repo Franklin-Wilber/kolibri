@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Arquitectura de Ejecucion de Kolibri Studio",
+    "output": "archify-studio-runtime.html",
+    "quality_profile": "showcase",
+    "viewBox": [1240, 760],
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Ruta HTTP",
+        "focus": ["browser", "nginx", "django", "postgres"],
+        "note": "El trafico entra por Nginx en localhost:8080 y las solicitudes dinamicas pasan a Gunicorn/Django en 8081."
+      },
+      {
+        "id": "static-and-content",
+        "label": "Estaticos y contenido",
+        "focus": ["browser", "nginx", "staticfiles", "minio", "django"],
+        "note": "Nginx sirve /static/ directamente y proxifica /content/ hacia MinIO con la configuracion default."
+      },
+      {
+        "id": "async-work",
+        "label": "Trabajo asincrono",
+        "focus": ["django", "redis", "celery", "postgres", "minio"],
+        "note": "Django encola trabajos Celery en Redis; el worker procesa tareas y guarda resultados via el backend de base de datos."
+      },
+      {
+        "id": "startup",
+        "label": "Arranque",
+        "focus": ["migrate", "postgres", "django", "celery"],
+        "note": "La app y el worker esperan que el servicio migrate termine correctamente antes de iniciar."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "external",
+      "label": "Navegador de usuario",
+      "sublabel": "bundles Vue 2 + SW",
+      "pos": [40, 320],
+      "size": [150, 74]
+    },
+    {
+      "id": "nginx",
+      "type": "backend",
+      "label": "studio-nginx",
+      "sublabel": "proxy inverso Nginx :8080",
+      "pos": [265, 320],
+      "size": [150, 74]
+    },
+    {
+      "id": "staticfiles",
+      "type": "cloud",
+      "label": "staticfiles volume",
+      "sublabel": "archivos /static colectados",
+      "pos": [265, 95],
+      "size": [150, 70]
+    },
+    {
+      "id": "django",
+      "type": "backend",
+      "label": "studio-app",
+      "sublabel": "Gunicorn/Django :8081",
+      "pos": [520, 320],
+      "size": [165, 78]
+    },
+    {
+      "id": "redis",
+      "type": "messagebus",
+      "label": "redis",
+      "sublabel": "Broker DB 0; cache DB 1",
+      "pos": [760, 155],
+      "size": [165, 74]
+    },
+    {
+      "id": "celery",
+      "type": "backend",
+      "label": "celery-worker",
+      "sublabel": "concurrencia Celery 3",
+      "pos": [760, 455],
+      "size": [165, 78]
+    },
+    {
+      "id": "migrate",
+      "type": "backend",
+      "label": "migrate job",
+      "sublabel": "migrate + loadconstants",
+      "pos": [1005, 95],
+      "size": [165, 70]
+    },
+    {
+      "id": "postgres",
+      "type": "database",
+      "label": "postgres",
+      "sublabel": "kolibri-studio :5432",
+      "pos": [1005, 320],
+      "size": [170, 78]
+    },
+    {
+      "id": "minio",
+      "type": "cloud",
+      "label": "minio",
+      "sublabel": "bucket S3 contenido :9000",
+      "pos": [520, 610],
+      "size": [165, 78]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "runtime predeterminado de docker-compose.prod.yml",
+      "wraps": ["nginx", "staticfiles", "django", "redis", "celery", "migrate", "postgres", "minio"],
+      "pad": 32
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-to-nginx",
+      "from": "browser",
+      "to": "nginx",
+      "label": "HTTP :8080",
+      "variant": "emphasis",
+      "labelDy": -38
+    },
+    {
+      "id": "nginx-to-django",
+      "from": "nginx",
+      "to": "django",
+      "label": "proxy_pass :8081",
+      "variant": "emphasis",
+      "labelDy": -38
+    },
+    {
+      "id": "nginx-to-static",
+      "from": "nginx",
+      "to": "staticfiles",
+      "label": "/static/ alias",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [340, 250]
+    },
+    {
+      "id": "django-collectstatic",
+      "from": "django",
+      "to": "staticfiles",
+      "label": "collectstatic escribe volumen",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "right",
+      "via": [[602.5, 245], [430, 245], [430, 130]],
+      "labelAt": [515, 232]
+    },
+    {
+      "id": "django-to-postgres",
+      "from": "django",
+      "to": "postgres",
+      "label": "ORM Django + sesiones",
+      "fromSide": "right",
+      "toSide": "left",
+      "via": [[720, 359], [720, 120], [970, 120], [970, 359]],
+      "labelAt": [845, 104]
+    },
+    {
+      "id": "django-to-redis",
+      "from": "django",
+      "to": "redis",
+      "label": "cache + cola",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [[602.5, 265], [730, 265], [730, 192]],
+      "labelAt": [790, 270]
+    },
+    {
+      "id": "celery-to-redis",
+      "from": "celery",
+      "to": "redis",
+      "label": "consume broker DB0",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelAt": [860, 345]
+    },
+    {
+      "id": "celery-to-postgres",
+      "from": "celery",
+      "to": "postgres",
+      "label": "resultados ORM + django-db",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "labelAt": [1000, 548]
+    },
+    {
+      "id": "django-to-minio",
+      "from": "django",
+      "to": "minio",
+      "label": "API storage S3",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [690, 500]
+    },
+    {
+      "id": "celery-to-minio",
+      "from": "celery",
+      "to": "minio",
+      "label": "tareas file, publish, import",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [[842.5, 585], [705, 585], [705, 649]],
+      "labelAt": [770, 570]
+    },
+    {
+      "id": "nginx-to-minio",
+      "from": "nginx",
+      "to": "minio",
+      "label": "/content/ proxy",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [[340, 575], [490, 575], [490, 649]],
+      "labelAt": [405, 558]
+    },
+    {
+      "id": "migrate-to-postgres",
+      "from": "migrate",
+      "to": "postgres",
+      "label": "migrate + loadconstants",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [1100, 245]
+    }
+  ]
+}

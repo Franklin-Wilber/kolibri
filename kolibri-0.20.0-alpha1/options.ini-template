@@ -1,0 +1,239 @@
+[FileStorage]
+# The storage backend class that Django will use when managing files. The class given here must implement
+# the django.files.storage.Storage class.
+# STORAGE_BACKEND = file_system
+
+# The name of the Google Cloud Storage bucket that will be used to store content files.
+# GS_BUCKET_NAME = 
+
+# The Google Cloud project ID that the bucket is associated with.
+# GS_PROJECT_ID = 
+
+# The path to the Google Cloud Storage credentials file that will be used to authenticate with the bucket.
+# GS_CREDENTIALS = 
+
+# The default access control list (ACL) to apply to new objects in the bucket.
+# GS_DEFAULT_ACL = publicRead
+
+[Cache]
+# Which backend to use for the main cache - if 'memory' is selected, then for most cache operations,
+# an in-memory, process-local cache will be used, but a disk based cache will be used for some data
+# that needs to be persistent across processes. If 'redis' is used, it is used for all caches.
+# CACHE_BACKEND = memory
+
+# Default timeout for entries put into the cache.
+# CACHE_TIMEOUT = 300
+
+# Maximum number of entries to maintain in the cache at once.
+# CACHE_MAX_ENTRIES = 1000
+
+# Password to authenticate to Redis, Redis only.
+# CACHE_PASSWORD = 
+
+# Host and port at which to connect to Redis, Redis only.
+# CACHE_LOCATION = localhost:6379
+
+# The database number for Redis.
+# CACHE_REDIS_DB = 0
+
+# Maximum number of simultaneous connections to allow to Redis, Redis only.
+# CACHE_REDIS_MAX_POOL_SIZE = 50
+
+# How long to wait when trying to connect to Redis before timing out, Redis only.
+# CACHE_REDIS_POOL_TIMEOUT = 30
+
+# Maximum memory that Redis should use, Redis only.
+# CACHE_REDIS_MAXMEMORY = 0
+
+# Eviction policy to use when using Redis for caching, Redis only.
+# CACHE_REDIS_MAXMEMORY_POLICY = 
+
+# Disk space to be used for caching streamed files. This is used for caching files that are
+# being streamed from remote libraries, if these files are later imported, these should be cleaned up,
+# and will no longer count to this cache size.
+# Value can either be a number suffixed with a unit (e.g. MB, GB, TB) or an integer number of bytes.
+# STREAMED_FILE_CACHE_SIZE = 500MB
+
+[Database]
+# Which database backend to use, choices are 'sqlite' or 'postgres'
+# DATABASE_ENGINE = sqlite
+
+# For SQLite - the name of a database file to use for the main Kolibri database.
+# For Postgresql, the name of the database to use for all Kolibri data.
+# DATABASE_NAME = 
+
+# The password to authenticate with when connecting to the database, Postgresql only.
+# DATABASE_PASSWORD = 
+
+# The user to authenticate with when connecting to the database, Postgresql only.
+# DATABASE_USER = 
+
+# The host on which to connect to the database, Postgresql only.
+# DATABASE_HOST = 
+
+# The port on which to connect to the database, Postgresql only.
+# DATABASE_PORT = 
+
+# The sslmode for the connection, Postgresql only.
+# DATABASE_SSL_MODE = disable
+
+# Path to the SSL certificate authority (CA) file for verifying the server certificate (maps to sslrootcert), Postgresql only.
+# DATABASE_SSL_ROOT_CERT = 
+
+[Server]
+# How many threads the Kolibri server should use to serve requests
+# CHERRYPY_THREAD_POOL = 50
+
+# How long a socket should wait for data flow to resume before
+# it considers that the connection has been interrupted.
+# Increasing this may help in situations where there is high
+# latency on a network or the bandwidth is bursty, with some
+# expected data flow interruptions which may not be indicative of the connection failing.
+# CHERRYPY_SOCKET_TIMEOUT = 10
+
+# How many requests to allow in the queue.
+# Increasing this may help situations where requests are instantly refused by the server.
+# CHERRYPY_QUEUE_SIZE = 30
+
+# How many seconds to wait for a request to be put into the queue.
+# Increasing this may help situations where requests are instantly refused by the server.
+# CHERRYPY_QUEUE_TIMEOUT = 0.1
+
+# Activate the server profiling middleware.
+# PROFILE = False
+
+# Run Kolibri with Django setting DEBUG = True
+# DEBUG = False
+
+# Activate debug logging for Django ORM operations.
+# DEBUG_LOG_DATABASE = False
+
+[Paths]
+# The directory that will store content files and content database files.
+# To change this in a currently active server it is recommended to use the
+# 'content movedirectory' management command.
+# CONTENT_DIR = content
+
+# Additional directories in which Kolibri will look for content files and content database files.
+# CONTENT_FALLBACK_DIRS = 
+
+# The file that contains the automatic device provisioning data.
+# AUTOMATIC_PROVISION_FILE = 
+
+[Urls]
+# URL to use as the default source for content import.
+# Slightly counterintuitively this will still be displayed in the UI as 'import from Kolibri Studio'.
+# CENTRAL_CONTENT_BASE_URL = https://studio.learningequality.org
+
+# URL to use as the target for data portal syncing.
+# DATA_PORTAL_SYNCING_BASE_URL = https://kolibridataportal.learningequality.org
+
+[Deployment]
+# Sets the port that Kolibri will serve on. This can be further overridden by command line arguments.
+HTTP_PORT = 8081
+
+# Turn off the statistics pingback. This will also disable update notifications
+# DISABLE_PING = False
+
+# Serve Kolibri from a subpath under the main domain. Used when serving multiple applications from
+# the same origin. This option is not heavily tested, but is provided for user convenience.
+# URL_PATH_PREFIX = /
+
+# The user interface languages to enable on this instance of Kolibri (has no effect on languages of imported content channels).
+# The default will include all the languages Kolibri supports.
+# LANGUAGES = kolibri-supported
+
+# When running by default (value blank), Kolibri frontend looks for the zipcontent endpoints
+# on the same domain as Kolibri proper, but uses ZIP_CONTENT_PORT instead of HTTP_PORT.
+# When running behind a proxy, set the value to the port where zipcontent endpoint is served on,
+# and it will be substituted for the port that Kolibri proper is being served on.
+# When zipcontent is being served from a completely separate domain, you can set an
+# absolute origin (full protocol plus domain, e.g. 'https://myzipcontent.com/')
+# to be used for all zipcontent origin requests.
+# It is strongly recommended that zipcontent is served from a different origin from the main Kolibri app,
+# either by port or domain, to allow for proper sandboxing.
+# ZIP_CONTENT_ORIGIN = 
+
+# Sets the port that Kolibri will serve the alternate origin server on. This is the server that
+# is used to serve all content for the zipcontent endpoint, so as to provide safe IFrame sandboxing
+# but avoiding issues with null origins.
+# This is the alternate origin server equivalent of HTTP_PORT.
+# It is strongly recommended that zipcontent is served from a different origin from the main Kolibri app,
+# either by port or domain, to allow for proper sandboxing.
+# ZIP_CONTENT_PORT = 0
+
+# The zip content equivalent of URL_PATH_PREFIX - allows all zip content URLs to be prefixed with
+# a fixed path. This both changes the URL from which the endpoints are served by the alternate
+# origin server, and the URL prefix where the Kolibri frontend looks for it.
+# In the case that ZIP_CONTENT_ORIGIN is pointing to an entirely separate origin, this setting
+# can still be used to set a URL prefix that the frontend of Kolibri will look to when
+# retrieving alternate origin URLs.
+# ZIP_CONTENT_URL_PATH_PREFIX = /
+
+# Boolean flag that causes content import processes to skip trying to import any
+# content, as it is assumed that the remote source has everything available.
+# Server configuration should handle ensuring that the files are properly served.
+# REMOTE_CONTENT = False
+
+# In case a SoUD connects to this server, the SoUD should use this interval to resync every user.
+# SYNC_INTERVAL = 60
+
+# The maximum age in seconds of a user session before it expires and the user is
+# logged out, controlling Django's SESSION_COOKIE_AGE. A value of 0 means sessions
+# effectively never expire (used by the single-user app installers).
+# AUTO_LOGOUT_TIME = 1200
+
+# The minimum free disk space that Kolibri should try to maintain on the device. This will
+# be used as the floor value to prevent Kolibri completely filling the disk during file import.
+# Value can either be a number suffixed with a unit (e.g. MB, GB, TB) or an integer number of bytes.
+# MINIMUM_DISK_SPACE = 250MB
+
+# The address that the server should listen on. This can be used to restrict access to the server
+# to a specific network interface.
+# LISTEN_ADDRESS = 0.0.0.0
+
+# A list of module paths for function callbacks that will be called when server restart is called.
+# The default is to disallow server restarts, so callbacks need to be added to enable restarting.
+# RESTART_HOOKS = ['kolibri.utils.server.signal_restart']
+
+# Boolean Flag to check Whether to enable Zeroconf discovery.
+# ZEROCONF_ENABLED = True
+
+# List of host sources to use in the Content Security Policy header. This should be a list of
+# host sources as described by in:
+# https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/Sources#host-source
+# Allowing deployed Kolibri servers to specify additional hosts from which content can be loaded.
+# CSP_HOST_SOURCES = 
+
+[Tasks]
+# The number of workers to spin up for regular priority asynchronous tasks.
+# REGULAR_PRIORITY_WORKERS = 4
+
+# The number of workers to spin up for high priority asynchronous tasks.
+# HIGH_PRIORITY_WORKERS = 2
+
+# The file to use for the job storage database. This is only used in the case that the database backend being used is SQLite.
+# JOB_STORAGE_FILEPATH = job_storage.sqlite3
+
+# The time in seconds without a heartbeat update before a supervisor is
+# considered dead and its jobs are requeued. Each supervisor heartbeats at a
+# third of this interval, so three consecutive heartbeats must be missed
+# before a supervisor is declared dead. Heartbeats are timestamped and
+# compared using database time, so clock differences between processes and
+# hosts do not eat into the margin. Deployments where a worker process can
+# pause for long periods (e.g. system sleep, or container freezes) should
+# increase this to avoid jobs being requeued while their worker is paused.
+# SUPERVISOR_STALE_THRESHOLD = 30
+
+[Learn]
+# Whether to enable custom channel navigation applications
+# ENABLE_CUSTOM_CHANNEL_NAV = False
+
+[OIDCClient]
+PROVIDER_URL = https://accounts.google.com
+CLIENT_URL = http://localhost:8080
+AUTHORIZATION_ENDPOINT = https://accounts.google.com/o/oauth2/v2/auth
+TOKEN_ENDPOINT = https://oauth2.googleapis.com/token
+USERINFO_ENDPOINT = https://openidconnect.googleapis.com/v1/userinfo
+ENDSESSION_ENDPOINT =
+JWKS_URI = https://www.googleapis.com/oauth2/v3/certs

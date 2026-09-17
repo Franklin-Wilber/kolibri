@@ -1,0 +1,329 @@
+<template>
+
+  <VApp>
+    <VToolbar
+      v-if="libraryMode || isFAQPage"
+      color="appBarDark"
+      dark
+      :clipped-left="!$isRTL"
+      :clipped-right="$isRTL"
+      app
+    >
+      <VToolbarSideIcon
+        :href="homeLink"
+        exact
+        color="appBarDark"
+        class="ma-0"
+        style="border-radius: 8px"
+      >
+        <KLogo
+          altText="Kolibri Logo with background"
+          :showBackground="true"
+          :size="36"
+        />
+      </VToolbarSideIcon>
+
+      <VToolbarTitle class="notranslate">
+        {{ isFAQPage ? $tr('frequentlyAskedQuestions') : $tr('libraryTitle') }}
+      </VToolbarTitle>
+    </VToolbar>
+    <AppBar v-else>
+      <template #tabs>
+        <VTab
+          v-for="listType in lists"
+          :key="listType.id"
+          :to="getChannelLink(listType)"
+          @click="trackTabClick(listType)"
+        >
+          <VBadge
+            :value="invitationsByListCounts[listType]"
+            color="black"
+          >
+            <template #badge>
+              <span>{{ $formatNumber(invitationsByListCounts[listType]) }}</span>
+            </template>
+            <span>{{ translateConstant(listType) }}</span>
+          </VBadge>
+        </VTab>
+        <VTab
+          :to="catalogLink"
+          @click="publicTabClick"
+        >
+          {{ $tr('catalog') }}
+        </VTab>
+        <VTab
+          :to="communityLibraryLink"
+          @click="communityLibraryTabClick"
+        >
+          {{ communityLibraryLabel$() }}
+        </VTab>
+        <VTab
+          v-if="loggedIn"
+          :to="channelSetLink"
+          @click="channelSetsTabClick"
+        >
+          {{ $tr('channelSets') }}
+        </VTab>
+      </template>
+    </AppBar>
+    <VContent>
+      <StudioOfflineAlert
+        v-if="!isCatalogPage"
+        :offset="toolbarHeight"
+      />
+      <VContainer
+        fluid
+        class="main-container pa-0"
+        :style="`height: calc(100vh - ${contentOffset}px); margin-top: ${offline ? 48 : 0}px;`"
+      >
+        <VContainer
+          fluid
+          class="h-100"
+          :class="isCatalogPage || isCommunityLibraryPage ? 'pa-0' : 'pa-4'"
+        >
+          <ChannelListAppError
+            v-if="fullPageError"
+            :error="fullPageError"
+          />
+          <RouterView v-else />
+        </VContainer>
+      </VContainer>
+    </VContent>
+    <GlobalSnackbar />
+    <PolicyModals />
+  </VApp>
+
+</template>
+
+
+<script>
+
+  import { mapActions, mapGetters, mapState } from 'vuex';
+  import { RouteNames, ChannelInvitationMapping, ListTypeToRouteMapping } from '../constants';
+  import ChannelListAppError from './ChannelListAppError';
+  import { ChannelListTypes } from 'shared/constants';
+  import { constantsTranslationMixin, routerMixin } from 'shared/mixins';
+  import GlobalSnackbar from 'shared/views/GlobalSnackbar';
+  import AppBar from 'shared/views/AppBar';
+  import StudioOfflineAlert from 'shared/views/StudioOfflineAlert.vue';
+  import PolicyModals from 'shared/views/policies/PolicyModals';
+  import { communityChannelsStrings } from 'shared/strings/communityChannelsStrings';
+
+  const CATALOG_PAGES = [
+    RouteNames.CATALOG_ITEMS,
+    RouteNames.CATALOG_DETAILS,
+    RouteNames.CATALOG_FAQ,
+  ];
+
+  const COMMUNITY_LIBRARY_PAGES = [
+    RouteNames.COMMUNITY_LIBRARY_ITEMS,
+    RouteNames.COMMUNITY_LIBRARY_DETAILS,
+  ];
+
+  const CHANNEL_SETS = 'channel_sets';
+  const ListTypeToAnalyticsLabel = {
+    [ChannelListTypes.EDITABLE]: 'EDITABLE',
+    [ChannelListTypes.PUBLIC]: 'PUBLIC',
+    [ChannelListTypes.STARRED]: 'STARRED',
+    [ChannelListTypes.VIEW_ONLY]: 'VIEW_ONLY',
+    [CHANNEL_SETS]: 'CHANNEL_SETS',
+  };
+
+  export default {
+    name: 'ChannelListIndex',
+    components: {
+      AppBar,
+      ChannelListAppError,
+      GlobalSnackbar,
+      PolicyModals,
+      StudioOfflineAlert,
+    },
+    mixins: [constantsTranslationMixin, routerMixin],
+    setup() {
+      const { communityLibraryLabel$ } = communityChannelsStrings;
+      return {
+        communityLibraryLabel$,
+      };
+    },
+    computed: {
+      ...mapState({
+        offline: state => !state.connection.online,
+      }),
+      ...mapGetters(['loggedIn']),
+      ...mapGetters('channelList', ['invitations']),
+      fullPageError() {
+        return this.$store.state.errors.fullPageError;
+      },
+      libraryMode() {
+        return window.libraryMode;
+      },
+      isFAQPage() {
+        return this.$route.name === RouteNames.CATALOG_FAQ;
+      },
+      isCatalogPage() {
+        return this.$route.name === RouteNames.CATALOG_ITEMS;
+      },
+      isCommunityLibraryPage() {
+        return this.$route.name === RouteNames.COMMUNITY_LIBRARY_ITEMS;
+      },
+      toolbarHeight() {
+        return this.libraryMode || this.isFAQPage ? 64 : 112;
+      },
+      contentOffset() {
+        return this.toolbarHeight + (this.offline ? 48 : 0);
+      },
+      lists() {
+        if (!this.loggedIn) {
+          return [];
+        }
+        return Object.values(ChannelListTypes).filter(l => l !== 'public');
+      },
+      anonymousPages() {
+        return this.libraryMode ? CATALOG_PAGES : [...CATALOG_PAGES, ...COMMUNITY_LIBRARY_PAGES];
+      },
+      invitationsByListCounts() {
+        const inviteMap = {};
+        Object.values(ChannelListTypes).forEach(type => {
+          inviteMap[type] = this.invitations.filter(
+            i => ChannelInvitationMapping[i.share_mode] === type,
+          ).length;
+        });
+        return inviteMap;
+      },
+      channelSetLink() {
+        return { name: RouteNames.CHANNEL_SETS };
+      },
+      catalogLink() {
+        return { name: RouteNames.CATALOG_ITEMS };
+      },
+      communityLibraryLink() {
+        return { name: RouteNames.COMMUNITY_LIBRARY_ITEMS };
+      },
+      homeLink() {
+        return this.libraryMode ? window.Urls.base() : window.Urls.channels();
+      },
+      publicTabClick() {
+        return this.trackTabClick.bind(this, ChannelListTypes.PUBLIC);
+      },
+      communityLibraryTabClick() {
+        return this.trackTabClick.bind(this, 'COMMUNITY_LIBRARY');
+      },
+      channelSetsTabClick() {
+        return this.trackTabClick.bind(this, CHANNEL_SETS);
+      },
+    },
+    watch: {
+      $route(route) {
+        if (!this.loggedIn) {
+          if (!this.anonymousPages.includes(route.name)) {
+            this.$router.replace({ name: RouteNames.CATALOG_ITEMS });
+          }
+        } else if (route.name === RouteNames.CHANNELS_EDITABLE) {
+          this.loadInvitationList();
+        }
+        if (this.fullPageError) {
+          this.$store.dispatch('errors/clearError');
+        }
+      },
+      '$route.name': {
+        handler: 'updateTitleForPage',
+        immediate: true,
+      },
+    },
+    created() {
+      if (this.loggedIn) {
+        this.loadInvitationList();
+      } else if (!this.anonymousPages.includes(this.$route.name)) {
+        this.$router.replace({ name: RouteNames.CATALOG_ITEMS });
+      }
+    },
+    mounted() {
+      if (localStorage.snackbar) {
+        this.$store.dispatch('showSnackbarSimple', localStorage.snackbar);
+        delete localStorage.snackbar;
+      }
+    },
+    methods: {
+      ...mapActions('channelList', ['loadInvitationList']),
+      getChannelLink(listType) {
+        return { name: ListTypeToRouteMapping[listType] };
+      },
+      updateTitleForPage() {
+        // Updates the tab title every time the top-level route changes
+        let title;
+        const routeName = this.$route.name;
+        if (routeName === RouteNames.CHANNEL_SETS) {
+          title = this.$tr('channelSets');
+        } else if (routeName === RouteNames.CATALOG_ITEMS) {
+          title = this.translateConstant('public');
+        } else if (routeName === RouteNames.CHANNELS_VIEW_ONLY) {
+          title = this.translateConstant('view');
+        } else if (routeName === RouteNames.CHANNELS_STARRED) {
+          title = this.translateConstant('bookmark');
+        } else if (routeName === RouteNames.CHANNELS_EDITABLE) {
+          title = this.translateConstant('edit');
+        } else if (routeName === RouteNames.COMMUNITY_LIBRARY_ITEMS) {
+          title = this.communityLibraryLabel$();
+        }
+        // Title changes for other routes are handled by other components, since
+        // we can access $tr messages only from within the component.
+        if (title) {
+          this.updateTabTitle(title);
+        }
+      },
+      trackTabClick(list) {
+        this.$analytics.trackClick('channel_list', ListTypeToAnalyticsLabel[list]);
+      },
+    },
+    $trs: {
+      channelSets: 'Collections',
+      catalog: 'Kolibri Library',
+      libraryTitle: 'Kolibri Content Library Catalog',
+      frequentlyAskedQuestions: 'Frequently asked questions',
+    },
+  };
+
+</script>
+
+
+<style lang="scss">
+
+  html {
+    overflow-y: auto !important;
+
+    .title,
+    .headline,
+    .display,
+    .display-1,
+    .subheading,
+    .v-toolbar__title,
+    .v-chip__content {
+      font-family: 'Noto Sans' !important;
+    }
+
+    .v-btn--flat,
+    .v-tabs__item {
+      font-weight: bold;
+      cursor: pointer;
+    }
+  }
+
+  body * {
+    font-family: 'Noto Sans';
+    outline-color: var(--v-secondary-base);
+  }
+
+  .v-tooltip__content {
+    max-width: 200px;
+    text-align: center;
+  }
+
+  .main-container {
+    overflow: auto;
+  }
+
+  .h-100 {
+    height: 100%;
+  }
+
+</style>

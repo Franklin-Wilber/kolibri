@@ -1,0 +1,131 @@
+x-studio-environment:
+  &studio-environment
+    MPLBACKEND: ps
+    SHELL: /bin/bash
+    AWS_S3_ENDPOINT_URL: http://minio:9000
+    AWS_BUCKET_NAME: content
+    AWS_ACCESS_KEY_ID: development
+    AWS_SECRET_ACCESS_KEY: development
+    DATA_DB_HOST: postgres
+    DJANGO_SETTINGS_MODULE: contentcuration.settings
+    RUN_MODE: docker-compose
+    CELERY_TIMEZONE: America/Los_Angeles
+    CELERY_REDIS_DB: 0
+    CELERY_BROKER_ENDPOINT: redis
+    CELERY_RESULT_BACKEND_ENDPOINT: redis
+    CELERY_REDIS_PASSWORD: ""
+    EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+    REMAP_SIGTERM: "SIGQUIT"
+
+x-studio-app:
+  &studio-app
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.prod
+    image: learningequality/studio-app-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment: *studio-environment
+
+services:
+  studio-nginx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nginx.prod
+    depends_on:
+      - studio-app
+    environment:
+      <<: *studio-environment
+      STUDIO_UPSTREAM: studio-app:8081
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - staticfiles:/app/contentworkshop_static:ro
+
+  studio-app:
+    <<: *studio-app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - staticfiles:/contentcuration/contentcuration/static
+
+  celery-worker:
+    <<: *studio-app
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: prodceleryworkers
+
+  migrate:
+    <<: *studio-app
+    command: migrate
+
+  bootstrap:
+    <<: *studio-app
+    profiles:
+      - tools
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    entrypoint: python
+    command:
+      - contentcuration/manage.py
+      - setup
+      - --clean-data-state
+      - --email
+      - a@a.com
+      - --password
+      - a
+
+  minio:
+    image: 'bitnamilegacy/minio:2024.5.28'
+    environment:
+      - "MINIO_DEFAULT_BUCKETS=content:public"
+      - MINIO_ROOT_USER=development
+      - MINIO_ROOT_PASSWORD=development
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - minio:/bitnami/minio/data
+
+  postgres:
+    image: ghcr.io/learningequality/postgres
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.postgres.dev
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER: learningequality
+      POSTGRES_PASSWORD: kolibri
+      POSTGRES_DB: kolibri-studio
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data/pgdata
+      - .docker/postgres:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learningequality -d kolibri-studio"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:6.0.9
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  minio:
+  pgdata:
+  staticfiles:

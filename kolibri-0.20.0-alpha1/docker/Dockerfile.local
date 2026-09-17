@@ -1,0 +1,76 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:20.19.3-bookworm-slim AS frontend-builder
+
+ARG KOLIBRI_VERSION=0.20.0a1
+
+WORKDIR /app
+
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    NODE_OPTIONS=--max-old-space-size=4096
+
+COPY . .
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
+    && printf "__version__ = version = '%s'\n" "$KOLIBRI_VERSION" > kolibri/_version.py \
+    && python -c "import tomllib; deps = tomllib.load(open('pyproject.toml', 'rb'))['dependency-groups']['base']; print('\n'.join(dep for dep in deps if isinstance(dep, str)))" > /tmp/kolibri-base-requirements.txt \
+    && python -m pip install --break-system-packages --no-cache-dir -r /tmp/kolibri-base-requirements.txt
+
+RUN corepack enable \
+    && corepack prepare pnpm@10.19.0 --activate \
+    && pnpm install --frozen-lockfile \
+    && pnpm run sandbox-build \
+    && pnpm exec kolibri-build prod --file ./build_tools/build_plugins.txt --transpile --cache --parallel 1 \
+    && test -f kolibri/core/build/kolibri.core.default_frontend_stats.json \
+    && test -f kolibri/plugins/setup_wizard/build/kolibri.plugins.setup_wizard.app_stats.json \
+    && test -f kolibri/plugins/epub_viewer/build/kolibri.plugins.epub_viewer.main_stats.json \
+    && test -f kolibri/plugins/pdf_viewer/build/kolibri.plugins.pdf_viewer.main_stats.json \
+    && find /app -name node_modules -type d -prune -exec rm -rf '{}' +
+
+
+FROM python:3.12-slim AS runtime
+
+ARG KOLIBRI_VERSION=0.20.0a1
+ARG INSTALL_DEV_DEPS=false
+
+ENV KOLIBRI_HOME=/kolibri \
+    KOLIBRI_HTTP_PORT=8080 \
+    KOLIBRI_ZIP_CONTENT_PORT=8081 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    SETUPTOOLS_SCM_PRETEND_VERSION=${KOLIBRI_VERSION} \
+    SETUPTOOLS_SCM_PRETEND_VERSION_FOR_KOLIBRI=${KOLIBRI_VERSION}
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        findutils \
+        passwd \
+        util-linux \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 1000 kolibri \
+    && useradd --uid 1000 --gid kolibri --shell /bin/bash kolibri \
+    && mkdir /kolibri \
+    && chown kolibri:kolibri /kolibri
+
+WORKDIR /app
+
+COPY --from=frontend-builder /app /app
+COPY --chmod=755 docker/entrypoint.sh /entrypoint.sh
+
+RUN python -c "import tomllib; deps = tomllib.load(open('pyproject.toml', 'rb'))['dependency-groups']['base']; print('\n'.join(dep for dep in deps if isinstance(dep, str)))" > /tmp/kolibri-base-requirements.txt \
+    && python -m pip install --no-cache-dir --upgrade pip 'setuptools<82' 'setuptools-scm>=9,<10' wheel \
+    && python -m pip install --no-cache-dir -r /tmp/kolibri-base-requirements.txt \
+    && if [ "$INSTALL_DEV_DEPS" = "true" ]; then python -m pip install --no-cache-dir -c /tmp/kolibri-base-requirements.txt django-silk==5.2.0 drf-yasg==1.21.7 coreapi==2.3.3; fi \
+    && python -m pip install --no-cache-dir mozilla-django-oidc==1.2.4 \
+    && python -m pip install --no-cache-dir --no-build-isolation --no-deps -e . \
+    && python -m pip install --no-cache-dir --no-build-isolation --no-deps -e python_packages/kolibri-oidc-client-plugin
+
+EXPOSE 8080 8081
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["kolibri", "start", "--foreground"]
